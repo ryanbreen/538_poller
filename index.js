@@ -8,6 +8,8 @@ var check = function() {
 
   request('http://projects.fivethirtyeight.com/2016-election-forecast/', {encoding: null}, function(err, response, body){
     
+    if (err) return;
+
     var handle = function(text) {
       var match = text.match(/race\.stateData = ([^;]*)/m);
       var obj = JSON.parse(match[1]);
