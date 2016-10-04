@@ -10,7 +10,7 @@ var sendSms = function(to, message) {
   client.messages.create({
     body: message,
     to: to,
-    from: '+16172063628'
+    from: process.env.TWILIO_FROM
   }, function(err, data) {
     if (err) {
       console.error('Could not notify administrator');
@@ -24,6 +24,10 @@ if (process.env.TWILIO_CONTACTS) {
   numbers = process.env.TWILIO_CONTACTS.split(';');
 }
 
+process.on('uncaughtException', function(err) {
+  console.log("Uncaught error: %s", err);
+});
+
 var check = function() {
 
   request('http://projects.fivethirtyeight.com/2016-election-forecast/', {encoding: null}, function(err, response, body){
@@ -33,14 +37,28 @@ var check = function() {
     var handle = function(text) {
       var match = text.match(/race\.stateData = ([^;]*)/m);
       var obj = JSON.parse(match[1]);
-      var clinton = obj.sentences.polls.leader + ': ' + obj.sentences.polls.probability;
+      var prob = Math.round(obj.sentences.polls.probability * 100) / 100;
 
-      if (last_change != clinton) {
-        last_change = clinton;
-        console.log("[%s] %s", new Date(), clinton);
+      // If this happens, I don't want to know.
+      if (obj.sentences.polls.leader != 'Clinton') {
+        process.exit(1);
+      }
+
+      if (last_change != prob) {
+
+        var direction = "↔️";
+
+        if (last_change > prob) direction = "⬆️";
+        else if (last_change < prob) direction = "⬇️";
+
+        last_change = prob;
+
+        var msg = prob + '% ' + direction;
+
+        console.log("[%s] %s", new Date(), msg);
 
         numbers.forEach(function(number) {
-          sendSms(number, clinton);
+          sendSms(number, msg);
         });
       }
     };
