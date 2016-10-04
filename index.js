@@ -48,8 +48,8 @@ var check = function() {
 
         var direction = "↔️";
 
-        if (last_change > prob) direction = "⬆️";
-        else if (last_change < prob) direction = "⬇️";
+        if (last_change > prob) direction = "️⬇";
+        else if (last_change < prob) direction = "⬆️";
 
         last_change = prob;
 
