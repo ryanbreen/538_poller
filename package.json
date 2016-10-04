@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "request": "^2.75.0"
+    "request": "^2.75.0",
+    "twilio": "^2.11.0"
   }
 }

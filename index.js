@@ -4,6 +4,26 @@ var zlib = require('zlib');
 
 var last_change = undefined;
 
+var client = require('twilio')(process.env.TWILIO_KEY, process.env.TWILIO_SECRET);
+
+var sendSms = function(to, message) {
+  client.messages.create({
+    body: message,
+    to: to,
+    from: '+16172063628'
+  }, function(err, data) {
+    if (err) {
+      console.error('Could not notify administrator');
+      console.error(err);
+    }
+  });
+};
+
+var numbers = [];
+if (process.env.TWILIO_CONTACTS) {
+  numbers = process.env.TWILIO_CONTACTS.split(';');
+}
+
 var check = function() {
 
   request('http://projects.fivethirtyeight.com/2016-election-forecast/', {encoding: null}, function(err, response, body){
@@ -19,9 +39,8 @@ var check = function() {
         last_change = clinton;
         console.log("[%s] %s", new Date(), clinton);
 
-        var display = spawn('osascript', ['-e', 'display notification "' + clinton + '" with title "Polls Changed"']);
-        display.stderr.on('data', (data) => {
-          console.log(`stderr: ${data}`);
+        numbers.forEach(function(number) {
+          sendSms(number, clinton);
         });
       }
     };
