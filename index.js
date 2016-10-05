@@ -44,6 +44,13 @@ var check = function() {
         process.exit(1);
       }
 
+      // Special case at startup: we don't want to send an alert each time we restart the process.
+      if (last_change == undefined) {
+        last_change = prob;
+        console.log("At start time, prob is %s", prob);
+        return;
+      }
+
       if (last_change != prob) {
 
         var direction = "↔️";
