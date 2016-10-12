@@ -2,7 +2,17 @@ var spawn = require('child_process').spawn;
 var request = require('request');
 var zlib = require('zlib');
 
-var last_change = undefined;
+var last_change = {
+  polls: undefined,
+  plus: undefined,
+  now: undefined
+};
+
+var last_numbers = {
+  polls: undefined,
+  plus: undefined,
+  now: undefined
+}
 
 var client = require('twilio')(process.env.TWILIO_KEY, process.env.TWILIO_SECRET);
 
@@ -30,6 +40,8 @@ process.on('uncaughtException', function(err) {
 
 var MODE = process.env.MODE || "P";
 
+var LAST_MESSAGE = undefined;
+
 var check = function() {
 
   var url = MODE === "S" ? "http://projects.fivethirtyeight.com/2016-election-forecast/senate/" : 'http://projects.fivethirtyeight.com/2016-election-forecast/';
@@ -39,43 +51,55 @@ var check = function() {
     
     if (err) return;
 
+    var changed = false;
+
     var handle = function(text) {
       var match = text.match(/race\.stateData = ([^;]*)/m);
       var obj = JSON.parse(match[1]);
-      var prob = Math.round(obj.sentences.polls.probability * 100) / 100;
 
-      // If this happens, I don't want to know.
-      if (obj.sentences.polls.leader != desired_outcome) {
-        process.exit(1);
-      }
+      var message = "";
 
-      // Special case at startup: we don't want to send an alert each time we restart the process.
-//      if (last_change == "buns") {
-      if (last_change == undefined) {
-        last_change = prob;
-        console.log("At start time, prob is %s", prob);
-        return;
-      }
+      ["polls", "plus", "now"].forEach(function(type) {
 
-      if (last_change != prob) {
+        var winner = obj.sentences[type].leader;
+        var prob = Math.round(obj.sentences[type].probability * 100) / 100;
+
+        if (obj.sentences[type].probability != last_numbers[type]) {
+          changed = true;
+        }
+
+        last_numbers[type] = obj.sentences[type].probability;
 
         var direction = "↔️";
 
-        if (last_change > prob) direction = "⬇";
-        else if (last_change < prob) direction = "⬆️";
+        if (last_change[type] > prob) direction = "⬇";
+        else if (last_change[type] < prob) direction = "⬆️";
 
-        last_change = prob;
+        last_change[type] = prob;
 
-        var msg = prob + '% ' + direction;
+        message += winner + " (" + type + ") " + prob + '% ' + direction;
 
-        if (MODE === "S") {
-          console.log("[%s] Senate %s", new Date(), msg);
-        } else {
-          console.log("[%s] %s", new Date(), msg);
+        if (type != "now") {
+          message += ", ";
         }
 
+      });
+
+      if (MODE === "S") {
+        message = "[Senate] " + message;
+      }
+
+      // Special case at startup: we don't want to send an alert each time we restart the process.
+//      if (LAST_MESSAGE == "buns") {
+      if (LAST_MESSAGE == undefined) {
+        LAST_MESSAGE = message;
+        console.log("At start time, message is %s", message);
+        return;
+      } else if (changed) {      
+        console.log("[%s] %s", new Date(), message);
+        LAST_MESSAGE = message;
         numbers.forEach(function(number) {
-          sendSms(number, msg);
+          sendSms(number, message);
         });
       }
     };
