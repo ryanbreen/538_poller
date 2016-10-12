@@ -28,9 +28,14 @@ process.on('uncaughtException', function(err) {
   console.log("Uncaught error: %s", err);
 });
 
+var MODE = process.env.MODE || "P";
+
 var check = function() {
 
-  request('http://projects.fivethirtyeight.com/2016-election-forecast/', {encoding: null}, function(err, response, body){
+  var url = MODE === "S" ? "http://projects.fivethirtyeight.com/2016-election-forecast/senate/" : 'http://projects.fivethirtyeight.com/2016-election-forecast/';
+  var desired_outcome = MODE === "S" ? "Democrats" : "Clinton";
+
+  request(url, {encoding: null}, function(err, response, body){
     
     if (err) return;
 
@@ -40,11 +45,12 @@ var check = function() {
       var prob = Math.round(obj.sentences.polls.probability * 100) / 100;
 
       // If this happens, I don't want to know.
-      if (obj.sentences.polls.leader != 'Clinton') {
+      if (obj.sentences.polls.leader != desired_outcome) {
         process.exit(1);
       }
 
       // Special case at startup: we don't want to send an alert each time we restart the process.
+//      if (last_change == "buns") {
       if (last_change == undefined) {
         last_change = prob;
         console.log("At start time, prob is %s", prob);
@@ -62,7 +68,11 @@ var check = function() {
 
         var msg = prob + '% ' + direction;
 
-        console.log("[%s] %s", new Date(), msg);
+        if (MODE === "S") {
+          console.log("[%s] Senate %s", new Date(), msg);
+        } else {
+          console.log("[%s] %s", new Date(), msg);
+        }
 
         numbers.forEach(function(number) {
           sendSms(number, msg);
